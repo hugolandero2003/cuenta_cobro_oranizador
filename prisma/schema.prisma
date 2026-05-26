@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  fullName  String
+  idNumber  String   @unique
+  phone     String?
+  address   String?
+  loans     Loan[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fullName])
+}
+
+model Loan {
+  id               Int        @id @default(autoincrement())
+  clientId         Int
+  client           Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  principalAmount  Int
+  interestRate     Float      @default(20)
+  totalAmount      Int
+  installmentsCount Int
+  installmentAmount Int
+  status           LoanStatus @default(ACTIVE)
+  payments         Payment[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  completedAt      DateTime?
+
+  @@index([clientId, status])
+  @@index([status])
+}
+
+model Payment {
+  id        Int      @id @default(autoincrement())
+  loanId    Int
+  loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  amount    Int
+  note      String?
+  paidAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([loanId, paidAt])
+}
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}

@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4efdf;
+  --foreground: #112726;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(circle at top left, #f5f3e8 0%, #ece7d8 34%, #ddf4ee 72%, #c0e8de 100%);
+}
+
+.app-light {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(52px);
+}
+
+.app-light-a {
+  width: 18rem;
+  height: 18rem;
+  right: -6rem;
+  top: -4rem;
+  background: rgb(52 211 153 / 0.22);
+}
+
+.app-light-b {
+  width: 18rem;
+  height: 18rem;
+  left: -5rem;
+  bottom: 2rem;
+  background: rgb(251 191 36 / 0.2);
+}
+
+.app-container {
+  position: relative;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 84rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .app-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-container {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+.app-surface {
+  border-radius: 1.5rem;
+  border: 1px solid rgb(255 255 255 / 0.75);
+  background: rgb(255 255 255 / 0.88);
+  box-shadow: 0 22px 48px rgb(15 23 42 / 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.panel-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.panel-card {
+  border-radius: 1rem;
+  border: 1px solid rgb(226 232 240 / 0.95);
+  background: rgb(255 255 255 / 0.92);
+  padding: 1rem;
+  box-shadow: 0 3px 14px rgb(15 23 42 / 0.06);
+}
+
+.input-field {
+  border: 1px solid #d9e2df;
+  background: #ffffff;
+  border-radius: 0.8rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #15803d;
+  box-shadow: 0 0 0 3px rgb(21 128 61 / 0.16);
+}
+
+.btn-primary {
+  border: 0;
+  border-radius: 0.8rem;
+  background: linear-gradient(125deg, #0f766e 0%, #1d9f90 55%, #51bfa4 100%);
+  color: #f3f9f8;
+  padding: 0.7rem 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgb(17 39 38 / 0.18);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
