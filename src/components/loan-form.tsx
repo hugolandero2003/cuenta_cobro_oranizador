@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type LoanFormProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -21,8 +21,20 @@ function parsePercentage(value: string): number {
 }
 
 export function LoanForm({ action }: LoanFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [principalAmount, setPrincipalAmount] = useState("");
   const [interestRate, setInterestRate] = useState("20");
+
+  async function handleSubmit(formData: FormData) {
+    await action(formData);
+    handleClearForm();
+  }
+
+  function handleClearForm() {
+    formRef.current?.reset();
+    setPrincipalAmount("");
+    setInterestRate("20");
+  }
 
   const totalAmount = useMemo(() => {
     const principal = parseMoney(principalAmount);
@@ -41,7 +53,7 @@ export function LoanForm({ action }: LoanFormProps) {
   });
 
   return (
-    <form action={action} className="app-surface flex flex-col gap-4 p-8">
+    <form ref={formRef} action={handleSubmit} className="app-surface flex flex-col gap-4 p-8">
       <h2 className="text-xl font-bold text-emerald-900 mb-2">Registrar nuevo préstamo</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
@@ -100,7 +112,16 @@ export function LoanForm({ action }: LoanFormProps) {
           <p className="text-xs text-slate-500">El total se calcula automáticamente según el porcentaje que escribas.</p>
         </div>
       </div>
-      <button type="submit" className="btn-primary mt-4">Registrar préstamo</button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="submit" className="btn-primary">Registrar préstamo</button>
+        <button
+          type="button"
+          onClick={handleClearForm}
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          Limpiar formulario
+        </button>
+      </div>
     </form>
   );
 }

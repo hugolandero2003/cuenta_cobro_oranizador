@@ -250,7 +250,7 @@ export default async function AnalisisPage() {
                           <div key={loan.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <p className="text-sm font-semibold text-slate-700">
-                                Préstamo #{loan.id} - {currencyFormatter.format(loan.principalAmount)}
+                                Préstamo - {currencyFormatter.format(loan.principalAmount)}
                               </p>
                               <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${getStatusBadge(loan.status)}`}>
                                 {getStatusText(loan.status)}

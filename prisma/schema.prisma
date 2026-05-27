@@ -29,6 +29,9 @@ model Loan {
   totalAmount      Int
   installmentsCount Int
   installmentAmount Int
+  firstInstallmentDate DateTime?
+  lastHandledDueInstallment Int?
+  lastHandledAt    DateTime?
   status           LoanStatus @default(ACTIVE)
   payments         Payment[]
   createdAt        DateTime   @default(now())

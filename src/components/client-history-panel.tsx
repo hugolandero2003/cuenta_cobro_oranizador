@@ -49,6 +49,28 @@ const statusColors: Record<LoanStatus, string> = {
 
 export function ClientHistoryPanel({ clients }: Props) {
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredClients = useMemo(() => {
+    const query = searchTerm
+      .trim()
+      .toLocaleLowerCase("es-CO")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    if (!query) {
+      return clients;
+    }
+
+    return clients.filter((client) =>
+      client.fullName
+        .toLocaleLowerCase("es-CO")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .includes(query),
+    );
+  }, [clients, searchTerm]);
+
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) ?? null,
     [clients, selectedClientId],
@@ -83,11 +105,28 @@ export function ClientHistoryPanel({ clients }: Props) {
           <p className="text-sm text-slate-500">Detalle y eliminación rápida por cliente.</p>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4">
+          <label htmlFor="client-search" className="sr-only">
+            Buscar cliente
+          </label>
+          <input
+            id="client-search"
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Buscar cliente por nombre..."
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+          />
+        </div>
+
+        <div className="mt-4 max-h-[24rem] overflow-y-auto pr-1">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {clients.length === 0 ? (
             <p className="text-sm text-slate-500">No hay clientes registrados.</p>
+          ) : filteredClients.length === 0 ? (
+            <p className="text-sm text-slate-500">No se encontraron clientes con ese nombre.</p>
           ) : (
-            clients.map((client) => {
+            filteredClients.map((client) => {
               const totalLoans = client.loans.length;
               const activeLoans = client.loans.filter((loan) => loan.status === "ACTIVE").length;
               const totalPending = client.loans.reduce((sum, loan) => {
@@ -96,7 +135,7 @@ export function ClientHistoryPanel({ clients }: Props) {
               }, 0);
 
               return (
-                <article key={client.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <article key={client.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="font-bold text-slate-900">{client.fullName}</h3>
@@ -105,7 +144,7 @@ export function ClientHistoryPanel({ clients }: Props) {
                     <p className="text-sm font-bold text-emerald-700">{currencyFormatter.format(totalPending)}</p>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" onClick={() => setSelectedClientId(client.id)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                       Detalle
                     </button>
@@ -120,20 +159,29 @@ export function ClientHistoryPanel({ clients }: Props) {
               );
             })
           )}
+          </div>
         </div>
       </section>
 
       {selectedClient ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
-          <div className="app-surface w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+          onClick={() => setSelectedClientId(null)}
+        >
+          <div className="app-surface w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6" onClick={(event) => event.stopPropagation()}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="panel-kicker">Detalle de cliente</p>
                 <h3 className="mt-1 text-2xl font-black text-slate-900">{selectedClient.fullName}</h3>
                 <p className="text-sm text-slate-500">Historial, estado y resumen visual de préstamos.</p>
               </div>
-              <button type="button" onClick={() => setSelectedClientId(null)} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-                Cerrar
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={() => setSelectedClientId(null)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg font-bold leading-none text-slate-700 transition hover:bg-slate-50"
+              >
+                ×
               </button>
             </div>
 
@@ -198,7 +246,7 @@ export function ClientHistoryPanel({ clients }: Props) {
                         return (
                           <div key={loan.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="font-semibold text-slate-800">Préstamo #{loan.id}</p>
+                              <p className="font-semibold text-slate-800">Préstamo registrado</p>
                               <span className={`rounded-full px-2 py-1 text-xs font-semibold text-white ${statusColors[loan.status]}`}>{statusLabels[loan.status]}</span>
                             </div>
                             <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">

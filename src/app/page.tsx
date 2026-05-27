@@ -1,4 +1,4 @@
-import { createLoanAction, registerPaymentAction } from "./actions";
+import { createLoanAction, markCollectionAlertHandledAction, registerPaymentAction } from "./actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { logoutAction } from "./auth-actions";
@@ -32,6 +32,9 @@ type DashboardData = {
     totalAmount: number;
     installmentAmount: number;
     installmentsCount: number;
+    firstInstallmentDate: Date | null;
+    lastHandledDueInstallment: number | null;
+    lastHandledAt: Date | null;
     createdAt: Date;
     client: {
       fullName: string;
@@ -40,11 +43,99 @@ type DashboardData = {
   }>;
 };
 
+type CollectionAlert = {
+  loanId: number;
+  clientName: string;
+  pendingAmount: number;
+  nextDueDate: Date;
+  dueInstallments: number;
+  isOverdue: boolean;
+  overdueDays: number;
+};
+
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
   currency: "COP",
   maximumFractionDigits: 0,
 });
+
+const dateFormatter = new Intl.DateTimeFormat("es-CO", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+function normalizeDateOnly(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12, 0, 0));
+}
+
+function addMonthsKeepingDay(date: Date, months: number): Date {
+  return normalizeDateOnly(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, date.getUTCDate(), 12, 0, 0)));
+}
+
+function elapsedMonths(startDate: Date, endDate: Date): number {
+  let months =
+    (endDate.getUTCFullYear() - startDate.getUTCFullYear()) * 12 +
+    (endDate.getUTCMonth() - startDate.getUTCMonth());
+
+  if (endDate.getUTCDate() < startDate.getUTCDate()) {
+    months -= 1;
+  }
+
+  return months;
+}
+
+function buildCollectionAlerts(activeLoans: DashboardData["activeLoans"]): CollectionAlert[] {
+  const today = normalizeDateOnly(new Date());
+  const dayMs = 1000 * 60 * 60 * 24;
+
+  const alerts = activeLoans
+    .map((loan) => {
+      const startDate = normalizeDateOnly(loan.firstInstallmentDate ?? loan.createdAt);
+      if (today.getTime() < startDate.getTime()) {
+        return null;
+      }
+
+      const monthsFromStart = elapsedMonths(startDate, today);
+      const dueInstallments = Math.min(loan.installmentsCount, Math.max(monthsFromStart + 1, 0));
+      const expectedPaid = Math.min(dueInstallments * loan.installmentAmount, loan.totalAmount);
+      const paidAmount = loan.payments.reduce((sum, payment) => sum + payment.amount, 0);
+      const pendingAmount = Math.max(expectedPaid - paidAmount, 0);
+
+      if (pendingAmount <= 0) {
+        return null;
+      }
+
+      if (loan.lastHandledDueInstallment !== null && loan.lastHandledDueInstallment >= dueInstallments) {
+        return null;
+      }
+
+      const coveredInstallments = Math.floor(paidAmount / loan.installmentAmount);
+      const nextDueInstallmentIndex = Math.min(coveredInstallments, Math.max(loan.installmentsCount - 1, 0));
+      const nextDueDate = addMonthsKeepingDay(startDate, nextDueInstallmentIndex);
+      const overdueDays = Math.max(Math.floor((today.getTime() - nextDueDate.getTime()) / dayMs), 0);
+
+      return {
+        loanId: loan.id,
+        clientName: loan.client.fullName,
+        pendingAmount,
+        nextDueDate,
+        dueInstallments,
+        isOverdue: overdueDays > 0,
+        overdueDays,
+      };
+    })
+    .filter((alert): alert is CollectionAlert => alert !== null)
+    .sort((a, b) => {
+      if (a.isOverdue !== b.isOverdue) {
+        return a.isOverdue ? -1 : 1;
+      }
+
+      return a.nextDueDate.getTime() - b.nextDueDate.getTime();
+    });
+
+  return alerts;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +156,7 @@ async function getDashboardData(): Promise<{ data: DashboardData | null; dbError
             orderBy: { createdAt: "desc" },
             include: {
               payments: {
+                orderBy: { paidAt: "desc" },
                 select: {
                   id: true,
                   amount: true,
@@ -137,6 +229,11 @@ export default async function Home() {
   }));
   const totalClients = clients.length;
   const totalActiveLoans = activeLoans.length;
+  const collectionAlerts = buildCollectionAlerts(activeLoans);
+  const overdueAlerts = collectionAlerts.filter((alert) => alert.isOverdue);
+  const todayAlerts = collectionAlerts.filter(
+    (alert) => !alert.isOverdue && normalizeDateOnly(alert.nextDueDate).getTime() === normalizeDateOnly(new Date()).getTime(),
+  );
   const activePortfolio = activeLoans.reduce((acc, loan) => {
     const paid = loan.payments.reduce((sum, payment) => sum + payment.amount, 0);
     return acc + Math.max(loan.totalAmount - paid, 0);
@@ -179,6 +276,54 @@ export default async function Home() {
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Saldo por cobrar</p>
             <p className="mt-2 text-2xl font-extrabold text-emerald-900 sm:text-3xl">{currencyFormatter.format(activePortfolio)}</p>
           </article>
+        </section>
+
+        <section className="app-surface p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-emerald-900">Alarmas de cobro</h2>
+            <p className="text-sm text-slate-500">Te avisa quién debe pagar hoy o ya está vencido.</p>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <article className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-rose-700">Vencidos</p>
+              <p className="mt-1 text-2xl font-black text-rose-700">{overdueAlerts.length}</p>
+            </article>
+            <article className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-amber-700">Para hoy</p>
+              <p className="mt-1 text-2xl font-black text-amber-700">{todayAlerts.length}</p>
+            </article>
+            <article className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-emerald-700">Total alertas</p>
+              <p className="mt-1 text-2xl font-black text-emerald-700">{collectionAlerts.length}</p>
+            </article>
+          </div>
+
+          <div className="mt-4 max-h-60 space-y-2 overflow-y-auto pr-1">
+            {collectionAlerts.length === 0 ? (
+              <p className="text-sm text-slate-500">No hay cuotas pendientes para hoy ni vencidas.</p>
+            ) : (
+              collectionAlerts.map((alert) => (
+                <article key={alert.loanId} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-slate-800">{alert.clientName}</p>
+                    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${alert.isOverdue ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>
+                      {alert.isOverdue ? `Vencido hace ${alert.overdueDays} día(s)` : "Paga hoy"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">Fecha de cobro: {dateFormatter.format(alert.nextDueDate)}</p>
+                  <p className="text-sm font-semibold text-emerald-700">Monto pendiente de esta cuota: {currencyFormatter.format(alert.pendingAmount)}</p>
+                  <form action={markCollectionAlertHandledAction} className="mt-2">
+                    <input type="hidden" name="loanId" value={alert.loanId.toString()} />
+                    <input type="hidden" name="dueInstallments" value={alert.dueInstallments.toString()} />
+                    <button type="submit" className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                      Atendido
+                    </button>
+                  </form>
+                </article>
+              ))
+            )}
+          </div>
         </section>
 
         <section className="grid gap-8 lg:grid-cols-2">
