@@ -9,8 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
+    "db:check": "node scripts/local-check.js",
     "db:normalize-names": "node scripts/normalize-client-names.js",
-    "local:check": "node scripts/local-check.js",
+    "local:check": "npm run db:check",
     "local:dev": "node scripts/local-dev.js"
   },
   "dependencies": {

@@ -18,7 +18,7 @@ async function main() {
       prisma.payment.count(),
     ]);
 
-    console.log("Local check OK.");
+    console.log("DB check OK.");
     console.log(`Clientes: ${clients}`);
     console.log(`Prestamos: ${loans}`);
     console.log(`Pagos: ${payments}`);
@@ -28,6 +28,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Error en local:check:", error.message);
+  console.error("Error en db:check:", error.message);
   process.exit(1);
 });
