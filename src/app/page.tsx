@@ -193,7 +193,8 @@ async function getDashboardData(): Promise<{ data: DashboardData | null; dbError
       },
       dbError: null,
     };
-  } catch {
+  } catch (error) {
+    console.error("Dashboard DB error:", error);
     return {
       data: null,
       dbError: "No fue posible consultar la base de datos. Revisa conexion y migraciones.",
